@@ -1,0 +1,47 @@
+---
+title: "PAF514 - Code Through"
+author: "Jesus Marcial"
+date: "2026-10-04"
+output: html_document
+---
+Federal Register Regular Expressions Code-Through
+
+Federal Acquisition Regulations (FAR) is the primary set of rules used by federal agencies for the acquisition of goods and services. For contractors, abiding by FAR is imperative as non-compliance can result in penalties. For this code-through, I'll apply regular expressions to find what 'Parts' section from the Federal Register API files are being addressed. This allows one to track what sections from the FAR are potentially being modified.
+
+1) First, we load the jsonlite and stringr packages. As the Federal Register API data is in JSON format, jsonlite allows us to convert it into a usable format in R. stringr provides functions for searching text in R, which we'll use to identify patterns.
+```{r}
+#Load packages
+library(jsonlite)
+library(stringr)
+```
+
+2) Next, we'll retrieve the Federal Register data, which contains government agency rules, proposed rules, and public notices. The API endpoint was sourced from https://www.federalregister.gov/developers/documentation/api/v1
+```{r}
+#Search Federal Register files. For the API URL, we're applying "Federal Acquisition Regulation" as one of the conditions. 
+api_url <- "https://www.federalregister.gov/api/v1/documents.json?per_page=20&conditions[term]=Federal%20Acquisition%20Regulation"
+
+# Convert JSON text to R objects
+acquisition_files <- fromJSON(api_url)
+
+acquisition_results <- acquisition_files$results
+```
+
+```{r}
+#Preview of the acquisition results. Note that some of titles reference a specific FAR Part.
+knitr::kable(head(acquisition_results[c("title","type","abstract")],10))
+```
+
+3) Some of the file titles mention what part(s) of the FAR is being discussed, whereas others are related to a different subject. To preview the document titles that refer to specific FAR parts, we'll use str_detect(), which detects the presence of a pattern in a string. Since some of the titles say "Part" and others "Parts", we'll use the "?" regex quantifier. This allows the code to count titles that use either "Part" or "Parts".
+```{r}
+# Identify titles containing the pattern "Part(s)"
+part_tracker <- str_detect(acquisition_results$title,"Parts?")
+```
+
+4) Lastly, now that we've identified which titles contain references to FAR Part or Parts, we extract the actual part number(s) from those titles through str_extract_all. The [0-9]+ character class is used to identify one or more consecutive digits from 0 through 9 in the titles. Now, we know what FAR Parts are potentially being updated. From a contractor's perspective, this information allows one to remain knowledgeable and informed in regulatory developments.
+```{r}
+#Extract FAR part numbers from the identified titles
+FAR_part <- str_extract_all(acquisition_results$title[part_tracker], "[0-9]+")
+FAR_part
+```
+
+
